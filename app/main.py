@@ -1,4 +1,3 @@
-import asyncio
 import random
 import traceback
 from collections import defaultdict
