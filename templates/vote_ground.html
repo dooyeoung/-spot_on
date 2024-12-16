@@ -662,10 +662,10 @@
                 if (userId && users[userId]) {
                     const {x, y} = users[userId];
                     const {isoX, isoY} = toIsometric(x, y);
-                    app.stage.position.set(
-                            -isoX * app.stage.scale.x + window.innerWidth / 2,
-                            -isoY * app.stage.scale.y + window.innerHeight / 2
-                    );
+                    cameraPosition.x = -isoX * app.stage.scale.x + window.innerWidth / 2;
+                    cameraPosition.y = -isoY * app.stage.scale.y + window.innerHeight / 2;
+                    cameraPosition.targetX = cameraPosition.x;
+                    cameraPosition.targetY = cameraPosition.y;
                 }
                 break;
             case "user_join":
