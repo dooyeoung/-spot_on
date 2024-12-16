@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixi.js with WebSocket</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* 방향키 버튼 스타일 */
+        .controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .row {
+            display: flex;
+            gap: 5px;
+        }
+
+        .arrow-btn {
+            width: 48px;
+            height: 48px;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .arrow-btn:hover {
+            background-color: #555;
+        }
+
+        .send-btn {
+            display: flex;
+            background-color: #333;
+            color: #ffffff;
+            width: 50px;
+            height: 36px;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        #chat-input {
+            height: 36px;
+            width: 160px;
+            padding-left: 8px;
+            border-radius: 4px;
+        }
+
+        #chat-input:focus {
+            outline: none;
+        }
+
+        #chat-container {
+            column-gap: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 300px;
+            text-align: center;
+        }
+
+        .emoji-btn {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            text-align: center;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            background: #333;
+            border-radius: 4px;
+        }
+
+        #emoji-container {
+            row-gap: 4px;
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #countdown {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 700;
+            font-size: 72px;
+            color: white;
+            z-index: 1000;
+        }
+
+        #score_results {
+            background-color: #575757b2;
+            padding: 20px;
+            width: 50vw;
+            height: 50vh;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: 700;
+            font-size: 24px;
+            color: white;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+<div id="countdown" style="display: none;"></div>
+
+<div id="score_results" style="display: none">
+</div>
+
+<!-- 방향키 버튼 UI -->
+<div class="controls">
+    <button class="arrow-btn" id="upButton"
+            onmousedown="simulateKeyEvent('ArrowUp', 'keydown')"
+            onmouseup="simulateKeyEvent('ArrowUp', 'keyup')"
+            ontouchstart="simulateKeyEvent('ArrowUp', 'keydown')"
+            ontouchend="simulateKeyEvent('ArrowUp', 'keyup')">
+        ↑
+    </button>
+    <div class="row">
+        <button class="arrow-btn" id="leftButton"
+                onmousedown="simulateKeyEvent('ArrowLeft', 'keydown')"
+                onmouseup="simulateKeyEvent('ArrowLeft', 'keyup')"
+                ontouchstart="simulateKeyEvent('ArrowLeft', 'keydown')"
+                ontouchend="simulateKeyEvent('ArrowLeft', 'keyup')">
+            ←
+        </button>
+        <button class="arrow-btn" id="downButton"
+                onmousedown="simulateKeyEvent('ArrowDown', 'keydown')"
+                onmouseup="simulateKeyEvent('ArrowDown', 'keyup')"
+                ontouchstart="simulateKeyEvent('ArrowDown', 'keydown')"
+                ontouchend="simulateKeyEvent('ArrowDown', 'keyup')">
+            ↓
+        </button>
+        <button class="arrow-btn" id="rightButton"
+                onmousedown="simulateKeyEvent('ArrowRight', 'keydown')"
+                onmouseup="simulateKeyEvent('ArrowRight', 'keyup')"
+                ontouchstart="simulateKeyEvent('ArrowRight', 'keydown')"
+                ontouchend="simulateKeyEvent('ArrowRight', 'keyup')">
+            →
+        </button>
+    </div>
+
+    <div id="chat-container" style="display: none">
+        <input id="chat-input" type="text" placeholder="Type your message..."/>
+        <div class="send-btn" onclick="sendChat()">Send</div>
+    </div>
+</div>
+<div id="emoji-container">
+    <div class="emoji-btn" onclick="toggleChatForm()">💬</div>
+    <div class="emoji-btn" onclick="sendEmoji('😀')">😀</div>
+    <div class="emoji-btn" onclick="sendEmoji('👍')">👍</div>
+    <div class="emoji-btn" onclick="sendEmoji('🎉')">🎉</div>
+    <div class="emoji-btn" onclick="sendEmoji('❤️')">❤️</div>
+</div>
+
+<script>
+    function toggleChatForm() {
+        const chatContainer = document.getElementById("chat-container");
+        chatContainer.style.display = chatContainer.style.display === "none" ? "" : "none";
+        chatInput.focus(); // 입력창에 자동 포커스
+    }
+
+
+    // Pixi.js Application
+    const app = new PIXI.Application({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        backgroundColor: 0x2c3e50,
+        antialias: true, // 안티알리아스 활성화
+    });
+
+    // UI 레이어 생성 (화면 고정용)
+    const uiLayer = new PIXI.Container();
+    app.stage.addChild(uiLayer);
+
+    document.body.appendChild(app.view);
+
+    // 사용자 상태 관리
+    const users = {};
+    let userId = '{{ username }}';
+    let lastSentPosition = {x: 0, y: 0}; // 마지막으로 서버에 전송된 위치
+
+    const cellSize = 50; // 그리드 셀 크기
+    const gridOffsetX = app.screen.width / 2; // 화면 중앙 X 오프셋
+    const gridOffsetY = app.screen.height / 2; // 화면 중앙 Y 오프셋
+
+    // 기본 줌 및 드래그 변수
+    let zoomLevel = 0.5;
+
+    // 키 입력 상태
+    const keys = {ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false};
+    let baseSpeed = 5;
+
+    const VOTING_ZONES = [
+        {id: 1, x: 10, y: -10, width: 5, height: 5, color: 0xff9999},
+        {id: 2, x: 10, y: 0, width: 5, height: 5, color: 0x99ff99},
+        {id: 3, x: 10, y: 10, width: 5, height: 5, color: 0x9999ff},
+        {id: 4, x: 20, y: -5, width: 5, height: 5, color: 0xffff99},
+        {id: 5, x: 20, y: 5, width: 5, height: 5, color: 0xff99ff},
+    ];
+
+    // 아이소메트릭 변환 함수 (중앙 기준 적용)
+    const toIsometric = (x, y) => ({
+        isoX: (x - y) + gridOffsetX,
+        isoY: (x + y) / 2 + gridOffsetY,
+    });
+
+    function deg2rad(degrees) {
+        return degrees * (Math.PI / 180);
+    }
+
+    // 투표 영역 그리기
+    const drawVotingZones = () => {
+        VOTING_ZONES.forEach(zone => {
+            const topLeft = toIsometric(zone.x * cellSize, zone.y * cellSize);
+            const topRight = toIsometric((zone.x + zone.width) * cellSize, zone.y * cellSize);
+            const bottomLeft = toIsometric(zone.x * cellSize, (zone.y + zone.height) * cellSize);
+            const bottomRight = toIsometric((zone.x + zone.width) * cellSize, (zone.y + zone.height) * cellSize);
+
+            // 투표 영역 다각형 생성
+            const polygon = new PIXI.Graphics();
+            polygon.beginFill(zone.color, 0.5);
+            polygon.lineStyle(2, 0xffffff);
+            polygon.moveTo(topLeft.isoX, topLeft.isoY);
+            polygon.lineTo(topRight.isoX, topRight.isoY);
+            polygon.lineTo(bottomRight.isoX, bottomRight.isoY);
+            polygon.lineTo(bottomLeft.isoX, bottomLeft.isoY);
+            polygon.lineTo(topLeft.isoX, topLeft.isoY);
+            polygon.endFill();
+
+            app.stage.addChild(polygon);
+
+            // 중앙 텍스트 추가 (아이소메트릭 보정)
+            const labelText = new PIXI.Text(`Zone ${zone.id}`, {
+                fontSize: 48,
+                fill: 0xffffff,
+            });
+            labelText.anchor.set(0.5); // 중심점을 기준으로 설정
+
+            // X축만 skew 적용 (아이소메트릭 기준 30도 기울임)
+            const skewMatrix = new PIXI.Matrix();
+            skewMatrix.set(1, 0.5, -2, 1); // X축 skew 적용
+            labelText.transform.setFromMatrix(skewMatrix);
+
+            // 텍스트 중앙 좌표를 계산
+            const centerX = (topLeft.isoX + bottomRight.isoX) / 2;
+            const centerY = (topLeft.isoY + bottomRight.isoY) / 2;
+
+            labelText.position.set(centerX, centerY); // 중앙 좌표에 배치
+            app.stage.addChild(labelText);
+        });
+    };
+
+    const drawText = () => {
+        const topLeft = toIsometric(0 * cellSize, 0 * cellSize);
+        const bottomRight = toIsometric(0 * cellSize, 0 * cellSize);
+
+        // 중앙 텍스트 추가 (아이소메트릭 보정)
+        const labelText = new PIXI.Text(`2024 레몬베이스 송년회`, {
+            fontSize: 72,
+            fill: 0xffffff,
+        });
+        labelText.anchor.set(0.5); // 중심점을 기준으로 설정
+
+        // X축만 skew 적용 (아이소메트릭 기준 30도 기울임)
+        const skewMatrix = new PIXI.Matrix();
+        skewMatrix.set(1, 0.5, -2, 1); // X축 skew 적용
+        labelText.transform.setFromMatrix(skewMatrix);
+
+        // 텍스트 중앙 좌표를 계산
+        const centerX = (topLeft.isoX + bottomRight.isoX) / 2;
+        const centerY = (topLeft.isoY + bottomRight.isoY) / 2;
+        labelText.position.set(centerX, centerY); // 중앙 좌표에 배치
+        app.stage.addChild(labelText);
+    }
+
+
+    // 그리드 그리기
+    const drawGrid = (size, gridWidth, gridHeight) => {
+        const grid = new PIXI.Graphics();
+        grid.lineStyle(1, 0xaaaaaa, 0.5);
+
+        for (let x = -gridWidth; x <= gridWidth; x += size) {
+            const start = toIsometric(x, -gridHeight);
+            const end = toIsometric(x, gridHeight);
+            grid.moveTo(start.isoX, start.isoY);
+            grid.lineTo(end.isoX, end.isoY);
+        }
+
+        for (let y = -gridHeight; y <= gridHeight; y += size) {
+            const start = toIsometric(-gridWidth, y);
+            const end = toIsometric(gridWidth, y);
+            grid.moveTo(start.isoX, start.isoY);
+            grid.lineTo(end.isoX, end.isoY);
+        }
+
+        app.stage.addChild(grid);
+    };
+
+    // 사용자 추가
+    const addUser = (id, x, y, color) => {
+        if (users[id]) return;
+
+        const {isoX, isoY} = toIsometric(x, y);
+        const circle = new PIXI.Graphics();
+        circle.lineStyle(4, 0xffffff); // 테두리 두께 4, 색상 흰색
+        circle.beginFill(PIXI.utils.string2hex(color));
+        circle.drawCircle(0, 0, 14);
+        circle.endFill();
+
+        circle.x = isoX;
+        circle.y = isoY;
+
+        const idText = new PIXI.Text(id, {
+            fontSize: 20,
+            fill: 0xffffff,
+            fontWeight: "bold",
+        });
+        idText.anchor.set(0.5, 1); // 중심점을 아래쪽으로 설정
+        idText.x = isoX; // 텍스트 초기 위치
+        idText.y = isoY - 20; // 아이콘 위에 표시 (20px 간격)
+
+        // 이모지 텍스트 추가
+        const chatText = new PIXI.Text("", {
+            fontSize: 48,
+            fill: 0xffffff,
+        });
+        chatText.anchor.set(0.5);
+        chatText.x = isoX;
+        chatText.y = isoY - 36; // 아이콘 위에 이모지 표시
+
+        // 이모지 텍스트 추가
+        const scoreText = new PIXI.Text("", {
+            fontSize: 48,
+            fill: 0xffffff,
+        });
+        scoreText.anchor.set(0.5);
+        scoreText.x = isoX;
+        scoreText.y = isoY - 84; // 아이콘 위에 이모지 표시
+
+        app.stage.addChild(circle);
+        app.stage.addChild(idText);
+        app.stage.addChild(chatText);
+        app.stage.addChild(scoreText);
+
+        // 사용자 저장
+        users[id] = {
+            circle,
+            idText,
+            chatText,
+            scoreText,
+            x,
+            y,
+            targetX: x,
+            targetY: y,
+            currentX: x,
+            currentY: y,
+            color,
+        };
+
+        // 사용자 강조 상태 추가
+        if (id === userId) {
+            users[id].highlightState = {
+                lineWidth: 4,
+                growing: true, // 테두리가 굵어지는 중인지 여부
+            };
+        }
+    };
+
+    // 사용자 강조 업데이트
+    const updateHighlight = () => {
+        if (!userId || !users[userId]) return;
+
+        const user = users[userId];
+        const highlight = user.highlightState;
+
+        if (highlight) {
+            // 테두리 두께 변경
+            if (highlight.growing) {
+                highlight.lineWidth += 0.2; // 테두리 두께 증가 속도
+                if (highlight.lineWidth >= 8) highlight.growing = false; // 최대 굵기
+            } else {
+                highlight.lineWidth -= 0.2; // 테두리 두께 감소 속도
+                if (highlight.lineWidth <= 2) highlight.growing = true; // 최소 굵기
+            }
+
+            // 아이콘 업데이트
+            user.circle.clear();
+            user.circle.lineStyle(highlight.lineWidth, 0xffffff); // 현재 테두리 두께 설정
+            user.circle.beginFill(PIXI.utils.string2hex(user.color));
+            user.circle.drawCircle(0, 0, 14);
+            user.circle.endFill();
+        }
+    };
+
+    // 사용자 이동
+    const moveUser = (id, x, y) => {
+        if (!users[id]) return;
+
+        const user = users[id];
+        user.targetX = x;
+        user.targetY = y;
+
+        // 초기화 (첫 이동 시 현재 위치 설정)
+        if (user.currentX === undefined || user.currentY === undefined) {
+            user.currentX = x;
+            user.currentY = y;
+        }
+
+        // 현재 사용자 이동 시 카메라 이동
+        if (id === userId) {
+            const {isoX, isoY} = toIsometric(user.targetX, user.targetY);
+
+            // 줌 스케일에 따른 카메라 이동 보정
+            app.stage.position.set(
+                -isoX * app.stage.scale.x + window.innerWidth / 2,
+                -isoY * app.stage.scale.y + window.innerHeight / 2
+            );
+        }
+
+        updateUserZone(id);
+    };
+
+    // 부드럽게 이동시키기 위한 보간법 적용
+    const updateUserPositions = () => {
+        Object.values(users).forEach(user => {
+            if (user.currentX === undefined || user.currentY === undefined) return;
+
+            const INTERPOLATION_SPEED = 0.1; // 보간 속도
+
+            // 위치 보간 업데이트
+            user.currentX += (user.targetX - user.currentX) * INTERPOLATION_SPEED;
+            user.currentY += (user.targetY - user.currentY) * INTERPOLATION_SPEED;
+
+            const {isoX, isoY} = toIsometric(user.currentX, user.currentY);
+            user.circle.x = isoX;
+            user.circle.y = isoY;
+
+            // ID 텍스트 및 채팅 텍스트 위치 업데이트
+            user.idText.x = isoX;
+            user.idText.y = isoY + 42; // 아이콘 위에 표시
+
+            user.chatText.x = isoX;
+            user.chatText.y = isoY - 48; // 아이콘 위에 표시
+
+            user.scoreText.x = isoX;
+            user.scoreText.y = isoY - 84; // 아이콘 위에 표시
+        });
+    };
+
+
+    // 캐릭터 움직임 업데이트
+    const updateMovement = (delta) => {
+        if (!userId || !users[userId]) return;
+
+        let dx = 0, dy = 0;
+
+        // 방향키 입력에 따른 이동 계산
+        if (keys.ArrowUp) dy -= baseSpeed * delta;
+        if (keys.ArrowDown) dy += baseSpeed * delta;
+        if (keys.ArrowLeft) dx -= baseSpeed * delta;
+        if (keys.ArrowRight) dx += baseSpeed * delta;
+
+        // 대각선 이동 조정
+        if (dx !== 0 && dy !== 0) {
+            dx *= Math.SQRT1_2; // 1 / √2
+            dy *= Math.SQRT1_2; // 1 / √2
+        }
+
+        // 이동 중이면 처리
+        if (dx !== 0 || dy !== 0) {
+            const user = users[userId];
+
+            // 충돌 감지
+            const newX = user.x + dx;
+            const newY = user.y + dy;
+            if (!detectCollision(newX, newY)) { // 충돌이 없을 경우에만 이동
+                user.x = newX;
+                user.y = newY;
+                moveUser(userId, user.x, user.y);
+
+                // 서버로 새로운 위치 전송
+                if (
+                    Math.abs(user.x - lastSentPosition.x) > 5 || // 최소 이동 거리 기준
+                    Math.abs(user.y - lastSentPosition.y) > 5
+                ) {
+                    ws.send(JSON.stringify(
+                        {type: "user_move", user_id: userId, x: user.x, y: user.y})
+                    );
+                    lastSentPosition = {x: user.x, y: user.y}; // 마지막 위치 업데이트
+                }
+            }
+        }
+    };
+
+    const detectCollision = (x, y) => {
+        const collisionRadius = 15; // 충돌 반경 (사용자 간 최소 거리)
+
+        for (const [otherUserId, otherUser] of Object.entries(users)) {
+            if (otherUserId === userId) continue; // 자신과 비교 제외
+
+            const dx = otherUser.currentX - x; // 현재 위치 기반으로 계산
+            const dy = otherUser.currentY - y; // 현재 위치 기반으로 계산
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < collisionRadius) {
+                return true; // 충돌 발생
+            }
+        }
+        return false; // 충돌 없음
+    };
+
+    function isUserInZone(userX, userY, zone) {
+        const zoneStartX = zone.x * cellSize;
+        const zoneEndX = (zone.x + zone.width) * cellSize;
+        const zoneStartY = zone.y * cellSize;
+        const zoneEndY = (zone.y + zone.height) * cellSize;
+
+        return userX >= zoneStartX && userX < zoneEndX && userY >= zoneStartY && userY < zoneEndY;
+    }
+
+    function getUserZone(userX, userY) {
+        for (const zone of VOTING_ZONES) {
+            if (isUserInZone(userX, userY, zone)) {
+                return zone.id; // 해당 Zone ID 반환
+            }
+        }
+        return null; // 어느 Zone에도 속하지 않음
+    }
+
+    function updateUserZone(userId) {
+        const user = users[userId];
+        if (!user) return;
+
+        const currentZone = getUserZone(user.x, user.y);
+
+        // Voting Zone 변경 처리
+        if (currentZone !== user.currentZone) {
+            user.currentZone = currentZone; // 현재 Zone 업데이트
+            if (currentZone) {
+                // 필요시 WebSocket으로 서버에 Zone 정보 전송
+                ws.send(JSON.stringify({
+                    type: "zone_in",
+                    user_id: userId,
+                    zone_id: currentZone,
+                }));
+            } else {
+                ws.send(JSON.stringify({
+                    type: "zone_leave",
+                    user_id: userId,
+                }));
+            }
+        }
+    }
+
+
+    // 카운트다운 시작 함수
+    function startCountdown(seconds) {
+        const countdownElement = document.getElementById("countdown");
+        countdownElement.style.display = "block"; // 카운트다운 표시
+        countdownElement.textContent = seconds; // 초기 값 설정
+
+        let remainingSeconds = seconds;
+
+        const interval = setInterval(() => {
+            remainingSeconds -= 1;
+            countdownElement.textContent = remainingSeconds;
+
+            if (remainingSeconds <= 0) {
+                clearInterval(interval); // 타이머 중단
+                countdownElement.style.display = "none"; // 카운트다운 숨기기
+
+                // 전달
+                ws.send(JSON.stringify({
+                    'user_id': '{{user_id}}',
+                    'type': 'count_down_end',
+                }));
+
+            }
+        }, 1000); // 1초마다 실행
+    }
+
+    // WebSocket 연결
+    const ws = new WebSocket("ws://localhost:8000/ws");
+    ws.onopen = function () {
+        ws.send(JSON.stringify({
+            'user_id': '{{user_id}}',
+            'type': 'login',
+        }));
+    }
+
+    ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        switch (message.type) {
+            case "init":
+                userId = message.user_id; // 현재 사용자 ID 저장
+                lastSentPosition = {x: 0, y: 0}; // 초기화
+
+                message.users.forEach(user =>
+                    addUser(user.user_id, user.x, user.y, user.color)
+                );
+                // 카메라 초기 위치 설정 (현재 사용자 기준)
+                if (userId && users[userId]) {
+                    const {x, y} = users[userId];
+                    const {isoX, isoY} = toIsometric(x, y);
+                    app.stage.position.set(
+                        -isoX * app.stage.scale.x + window.innerWidth / 2,
+                        -isoY * app.stage.scale.y + window.innerHeight / 2
+                    );
+                }
+                break;
+            case "user_join":
+                addUser(message.user_id, message.x, message.y, message.color);
+                break;
+            case "user_move":
+                moveUser(message.user_id, message.x, message.y);
+                break;
+            case "chat": // 이모지 표시 처리
+                if (users[message.user_id]) {
+                    displayChat(message.user_id, message.chat);
+                }
+                break;
+            case "count_down":
+                const countDownValue = message.value;
+                startCountdown(countDownValue);
+                break;
+            case "show_answer":
+                message.user_ids.forEach(correct_user_id => {
+                    displayScore(correct_user_id, message.chat);
+                })
+                break;
+            case "result":
+                const scoreResults = document.getElementById('score_results')
+                scoreResults.innerHTML = '';
+                message.results.forEach(result => {
+                    const newDiv = document.createElement('div');
+                    newDiv.textContent = result.user_id + ' : ' + result.score;
+                    scoreResults.appendChild(newDiv);
+                })
+                scoreResults.style.display = scoreResults.style.display === "none" ? "" : "none";
+                break;
+            case "user_leave":
+                if (users[message.user_id]) {
+                    app.stage.removeChild(users[message.user_id].circle);
+                    app.stage.removeChild(users[message.user_id].chatText);
+                    app.stage.removeChild(users[message.user_id].idText);
+                    delete users[message.user_id];
+                }
+                break;
+        }
+    };
+
+    // 이모지를 보내는 함수
+    const sendEmoji = (emoji) => {
+        if (!userId || !users[userId]) return;
+        ws.send(JSON.stringify({type: "chat", user_id: userId, chat: emoji}));
+    };
+
+    const sendChat = () => {
+        if (!userId || !users[userId]) return;
+        const message = document.getElementById('chat-input').value;
+        ws.send(JSON.stringify({type: "chat", user_id: userId, chat: message}));
+        document.getElementById('chat-input').value = '';
+    }
+
+
+    let emojiTimeOutMap = {}
+    // 이모지를 사용자 아이콘 위에 표시
+    const displayChat = (id, chat) => {
+        if (!users[id]) return;
+
+        const user = users[id];
+        user.chatText.text = chat;
+        clearInterval(emojiTimeOutMap[id]);
+
+        // 2초 후 이모지 제거
+        emojiTimeOutMap[id] = setTimeout(() => {
+            user.chatText.text = "";
+        }, 3000);
+    };
+
+    let scoreTimeoutMap = {};
+    const displayScore = (id) => {
+        if (!users[id]) return;
+
+        const user = users[id];
+        user.scoreText.text = '+10';
+        clearInterval(scoreTimeoutMap[id]);
+
+        // 2초 후 이모지 제거
+        scoreTimeoutMap[id] = setTimeout(() => {
+            user.scoreText.text = "";
+        }, 3000);
+    }
+
+    // 키 다운 이벤트
+    window.addEventListener("keydown", (event) => {
+        if (keys[event.key] !== undefined) keys[event.key] = true;
+    });
+
+    // 키 업 이벤트
+    window.addEventListener("keyup", (event) => {
+        if (keys[event.key] !== undefined) {
+            keys[event.key] = false;
+        }
+    });
+    window.addEventListener("resize", () => {
+        app.renderer.resize(window.innerWidth, window.innerHeight);
+    });
+
+    const activeKeys = new Set();
+
+    // 키 입력 종료
+    function stopKeyPress(key) {
+        simulateKeyEvent(key, 'keyup'); // 키업 이벤트 발생
+        activeKeys.delete(key); // 활성화된 키 제거
+    }
+
+    // 전역 이벤트 리스너로 누르고 있는 모든 키 멈춤 처리
+    function stopAllKeyPresses() {
+        activeKeys.forEach(key => stopKeyPress(key));
+    }
+
+    // 전역 리스너 등록
+    document.addEventListener('mouseup', stopAllKeyPresses);
+    document.addEventListener('touchend', stopAllKeyPresses);
+
+    const simulateKeyEvent = (key, type = "keydown") => {
+        activeKeys.add(key)
+        const event = new KeyboardEvent(type, {key});
+        window.dispatchEvent(event);
+    };
+
+    // 그리드와 안내 문구 그리기
+    drawGrid(50, 10000, 10000);
+    drawVotingZones();
+    drawText();
+    // Ticker로 캐릭터 움직임 업데이트
+    app.ticker.add((delta) => {
+
+        updateHighlight();
+        updateUserPositions(); // 보간 업데이트
+        updateMovement(delta);
+    });
+    app.stage.scale.set(zoomLevel);
+
+</script>
+</body>
+</html>

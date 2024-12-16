@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Pixi.js with WebSocket</title>
+</head>
+<body>
+<div class="container mx-auto">
+    <form method='post' action='/countdown/'>
+        <div class="flex">
+            <input type="number"
+                   name="correct_answer"
+                   id="correct_answer"
+                   class="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600  p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                   placeholder="정답 번호"
+                   required=""/>
+            <input type="number"
+                   name="count_down"
+                   id="count_down"
+                   placeholder="카운트 다운 초"
+                   class="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                   required=""/>
+            <button type="submit"
+                    class=" text-white bg-blue-600 bg-blue-700 outline-none ring-primary-300 font-medium rounded-lg text-sm px-4 py-2 text-center">
+                카운트다운
+            </button>
+        </div>
+    </form>
+
+    <br>
+    <div>
+        <form method='post' action='/result/'>
+            <div class="flex">
+                <button type="submit"
+                        class=" text-white bg-blue-600 bg-blue-700 outline-none ring-primary-300 font-medium rounded-lg text-sm px-4 py-2 text-center">
+                    결과 보기
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <br>
+    <div>
+        <form method='post' action='/reset/'>
+            <div class="flex">
+                <button type="submit"
+                        class="text-white bg-red-600 bg-red-700 outline-none ring-primary-300 font-medium rounded-lg text-sm px-4 py-2 text-center">
+                    초기화
+                </button>
+            </div>
+        </form>
+    </div>
+    <h1></h1>
+
+</div>
+</body>
+</html>
