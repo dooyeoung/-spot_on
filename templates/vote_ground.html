@@ -640,8 +640,8 @@
     }
 
     // WebSocket 연결 new WebSocket("ws://localhost:8000/ws");
-    // const ws = new WebSocket("wss://spot-on.onrender.com/ws");
-    const ws = new WebSocket("wss://quagga-romantic-pug.ngrok-free.app/ws")
+    // const ws = new WebSocket("wss://quagga-romantic-pug.ngrok-free.app/ws")
+    const ws = new WebSocket("wss://spot-on.onrender.com/ws");
     ws.onopen = function () {
         ws.send(JSON.stringify({
             'user_id': '{{user_id}}',
