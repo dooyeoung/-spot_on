@@ -805,7 +805,7 @@
     // Ticker로 캐릭터 움직임 업데이트
     app.ticker.add((delta) => {
         // 카메라 보간 속도 설정 (값이 작을수록 더 부드러움)
-        const CAMERA_LERP_SPEED = 0.1;
+        const CAMERA_LERP_SPEED = 0.05;
         if (cameraPosition.targetX !== undefined && cameraPosition.targetY !== undefined) {
             cameraPosition.x += (cameraPosition.targetX - cameraPosition.x) * CAMERA_LERP_SPEED;
             cameraPosition.y += (cameraPosition.targetY - cameraPosition.y) * CAMERA_LERP_SPEED;
