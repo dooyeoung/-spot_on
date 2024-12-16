@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Pixi.js with WebSocket</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
@@ -24,8 +26,8 @@
         /* 방향키 버튼 스타일 */
         .controls {
             position: absolute;
-            bottom: 10px;
-            left: 50%;
+            bottom: 36px;
+            left: 60%;
             transform: translateX(-50%);
             display: flex;
             flex-direction: column;
@@ -51,10 +53,10 @@
             user-select: none; /* 텍스트 선택 방지 */
             -webkit-user-select: none; /* 웹킷 브라우저 지원 */
             -ms-user-select: none; /* 구형 IE 지원 */
-        }
 
-        .arrow-btn:hover {
-            background-color: #555;
+            touch-action: manipulation; /* 더블탭 확대 방지 */
+            -webkit-touch-callout: none; /* iOS에서 컨텍스트 메뉴 방지 */
+            user-select: none; /* 텍스트 선택 방지 */
         }
 
         .send-btn {
@@ -70,6 +72,10 @@
             user-select: none; /* 텍스트 선택 방지 */
             -webkit-user-select: none; /* 웹킷 브라우저 지원 */
             -ms-user-select: none; /* 구형 IE 지원 */
+
+            touch-action: manipulation; /* 더블탭 확대 방지 */
+            -webkit-touch-callout: none; /* iOS에서 컨텍스트 메뉴 방지 */
+            user-select: none; /* 텍스트 선택 방지 */
         }
 
         #chat-input {
@@ -109,12 +115,16 @@
 
             -webkit-user-select: none; /* 웹킷 브라우저 지원 */
             -ms-user-select: none; /* 구형 IE 지원 */
+
+            touch-action: manipulation; /* 더블탭 확대 방지 */
+            -webkit-touch-callout: none; /* iOS에서 컨텍스트 메뉴 방지 */
+            user-select: none; /* 텍스트 선택 방지 */
         }
 
         #emoji-container {
             row-gap: 4px;
             position: absolute;
-            bottom: 10px;
+            bottom: 36px;
             left: 10px;
             display: flex;
             flex-direction: column;
@@ -194,10 +204,13 @@
     </div>
 </div>
 <div id="emoji-container">
-    <div class="emoji-btn" onclick="toggleChatForm()">💬</div>
-    <div class="emoji-btn" onclick="sendEmoji('😀')">😀</div>
+    <div class="emoji-btn" style="display: none" onclick="toggleChatForm()">💬</div>
     <div class="emoji-btn" onclick="sendEmoji('👍')">👍</div>
-    <div class="emoji-btn" onclick="sendEmoji('🎉')">🎉</div>
+    <div class="emoji-btn" onclick="sendEmoji('😭')">😭</div>
+    <div class="emoji-btn" onclick="sendEmoji('😀')">😀</div>
+    <div class="emoji-btn" onclick="sendEmoji('🥺')">🥺</div>
+    <div class="emoji-btn" onclick="sendEmoji('😤')">😤</div>
+    <div class="emoji-btn" onclick="sendEmoji('😡')">😡</div>
     <div class="emoji-btn" onclick="sendEmoji('❤️')">❤️</div>
 </div>
 
@@ -215,11 +228,6 @@
         backgroundColor: 0x2c3e50,
         antialias: true, // 안티알리아스 활성화
     });
-
-    // UI 레이어 생성 (화면 고정용)
-    const uiLayer = new PIXI.Container();
-    app.stage.addChild(uiLayer);
-
     document.body.appendChild(app.view);
 
     // 사용자 상태 관리
@@ -365,7 +373,6 @@
         circle.beginFill(PIXI.utils.string2hex(color));
         circle.drawCircle(0, 0, 14);
         circle.endFill();
-
         circle.x = isoX;
         circle.y = isoY;
 
@@ -703,6 +710,7 @@
                     app.stage.removeChild(users[message.user_id].circle);
                     app.stage.removeChild(users[message.user_id].chatText);
                     app.stage.removeChild(users[message.user_id].idText);
+                    app.stage.removeChild(users[message.user_id].shadow);
                     delete users[message.user_id];
                 }
                 break;
@@ -799,7 +807,6 @@
         // 카메라 보간 속도 설정 (값이 작을수록 더 부드러움)
         const CAMERA_LERP_SPEED = 0.1;
         if (cameraPosition.targetX !== undefined && cameraPosition.targetY !== undefined) {
-            // 보간법으로 카메라 위치를 업데이트
             cameraPosition.x += (cameraPosition.targetX - cameraPosition.x) * CAMERA_LERP_SPEED;
             cameraPosition.y += (cameraPosition.targetY - cameraPosition.y) * CAMERA_LERP_SPEED;
             app.stage.position.set(cameraPosition.x, cameraPosition.y);
