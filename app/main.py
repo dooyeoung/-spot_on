@@ -7,8 +7,8 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 import uvicorn
 
-from connection_manager import ConnectionManager
-from constants import MessageType
+from app.connection_manager import ConnectionManager
+from app.constants import MessageType
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
