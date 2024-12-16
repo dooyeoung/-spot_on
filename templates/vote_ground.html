@@ -135,16 +135,17 @@
         #score_results {
             background-color: #575757b2;
             padding: 20px;
-            width: 50vw;
+            width: 80vw;
             height: 50vh;
             position: absolute;
             left: 50%;
             top: 50%;
             transform: translate(-50%, -50%);
             font-weight: 700;
-            font-size: 24px;
+            font-size: 14px;
             color: white;
             z-index: 1000;
+            text-align: center;
         }
     </style>
 </head>
@@ -692,7 +693,7 @@
                 scoreResults.innerHTML = '';
                 message.results.forEach(result => {
                     const newDiv = document.createElement('div');
-                    newDiv.textContent = result.user_id + ' : ' + result.score;
+                    newDiv.textContent = result.user_id.split('@')[0] + ' : ' + result.score;
                     scoreResults.appendChild(newDiv);
                 })
                 scoreResults.style.display = scoreResults.style.display === "none" ? "" : "none";
