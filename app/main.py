@@ -39,19 +39,54 @@ async def post(request: Request):
 
     return templates.TemplateResponse("vote_ground.html", context)
 
+@app.post("/status/", response_class=HTMLResponse)
+async def post(request: Request):
+    global active_users
+
+    user_states = [{"user_id": user_id, "status": datas['websocket'].client_state} for user_id, datas in active_users.items()]
+
+    context = {
+        "request": request,  # 반드시 포함되어야 함
+        "user_states": user_states,
+    }
+    return templates.TemplateResponse("admin.html", context)
 
 @app.post("/reset/", response_class=HTMLResponse)
 async def post(request: Request):
     global active_users
+    global user_score_map
+    global correct_answer
+
     manager.all_disconnect()
+
     del active_users
+    del user_score_map
+    correct_answer = 0
     active_users = {}
+    user_score_map = defaultdict(int)
 
     context = {
         "request": request,  # 반드시 포함되어야 함
     }
     return templates.TemplateResponse("admin.html", context)
 
+
+@app.post("/notice/", response_class=HTMLResponse)
+async def post(request: Request):
+    form_data = await request.form()
+    notice_content = form_data.get("notice_content")  # 특정 필드 값 가져오기
+
+    await manager.broadcast(
+        {
+            "type": MessageType.NOTICE,
+            "content": notice_content,
+        }
+    )
+
+    context = {
+        "request": request,  # 반드시 포함되어야 함
+    }
+    return templates.TemplateResponse("admin.html", context)
 
 @app.post("/result/", response_class=HTMLResponse)
 async def post(request: Request):
@@ -76,6 +111,7 @@ async def post(request: Request):
 
     context = {
         "request": request,  # 반드시 포함되어야 함
+        "results": results,
     }
     return templates.TemplateResponse("admin.html", context)
 

@@ -8,6 +8,7 @@
 </head>
 <body>
 <div class="container mx-auto">
+    <h1 class="text-2xl"> 문제 카운트 다운 </h1>
     <form method='post' action='/countdown/'>
         <div class="flex">
             <input type="number"
@@ -29,7 +30,26 @@
         </div>
     </form>
 
-    <br>
+    <hr class="my-8">
+    <h1 class="text-2xl"> 접속자 확인 </h1>
+    <div>
+        <form method='post' action='/status/'>
+            <div class="flex">
+                <button type="submit"
+                        class=" text-white bg-blue-600 bg-blue-700 outline-none ring-primary-300 font-medium rounded-lg text-sm px-4 py-2 text-center">
+                    접속자 확인
+                </button>
+            </div>
+        </form>
+        <div>
+            {% for data in user_states %}
+            <div>{{ data.user_id }} {{ data.status }}</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <hr class="my-8">
+    <h1 class="text-2xl"> 결과 보기 </h1>
     <div>
         <form method='post' action='/result/'>
             <div class="flex">
@@ -38,10 +58,36 @@
                     결과 보기
                 </button>
             </div>
+            <div>
+                {% for result in results %}
+                <div>{{ result.user_id }} {{ result.score }}</div>
+                {% endfor %}
+            </div>
         </form>
     </div>
 
-    <br>
+    <hr class="my-8">
+    <h1 class="text-2xl"> 공지 입력 </h1>
+    <div>
+        <form method='post' action='/notice/'>
+            <div class="flex">
+                <input type="text"
+                       name="notice_content"
+                       id="notice_content"
+                       class="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600  p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                       placeholder="공지 사항 입력"
+                       required=""/>
+                <button type="submit"
+                        class="text-white bg-blue-600 bg-blue-700 outline-none ring-primary-300 font-medium rounded-lg text-sm px-4 py-2 text-center">
+                    공지 입력
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <hr class="my-8">
+    <h1 class="text-2xl"> 초기화 </h1>
+    <p>웬만하면 누르지 마세요</p>
     <div>
         <form method='post' action='/reset/'>
             <div class="flex">
@@ -52,7 +98,6 @@
             </div>
         </form>
     </div>
-    <h1></h1>
 
 </div>
 </body>

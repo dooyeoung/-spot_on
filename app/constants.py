@@ -12,5 +12,6 @@ class MessageType(StrEnum):
     ZONE_IN = 'zone_in'
     ZONE_LEAVE = 'zone_leave'
     SHOW_ANSWER = 'show_answer'
+    NOTICE = 'notice'
     RESULT = 'result'
     CHAT = "chat"

@@ -7,6 +7,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Pixi.js with WebSocket</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
         body {
             margin: 0;
@@ -33,30 +35,6 @@
             flex-direction: column;
             align-items: center;
             gap: 4px;
-        }
-
-        .row {
-            display: flex;
-            gap: 5px;
-        }
-
-        .arrow-btn {
-            width: 48px;
-            height: 48px;
-            background-color: #333;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            user-select: none; /* 텍스트 선택 방지 */
-            -webkit-user-select: none; /* 웹킷 브라우저 지원 */
-            -ms-user-select: none; /* 구형 IE 지원 */
-
-            touch-action: manipulation; /* 더블탭 확대 방지 */
-            -webkit-touch-callout: none; /* iOS에서 컨텍스트 메뉴 방지 */
-            user-select: none; /* 텍스트 선택 방지 */
         }
 
         .send-btn {
@@ -124,7 +102,7 @@
         #emoji-container {
             row-gap: 4px;
             position: absolute;
-            bottom: 36px;
+            top: 36px;
             left: 10px;
             display: flex;
             flex-direction: column;
@@ -132,17 +110,14 @@
         }
 
         #countdown {
-            position: absolute;
-            top: 40px;
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%);
-            font-weight: 700;
-            font-size: 72px;
-            color: white;
+            transform: translate(-50%, -50%);
             z-index: 1000;
         }
 
         #score_results {
+            overflow-y: auto;
             background-color: #575757b2;
             padding: 20px;
             width: 80vw;
@@ -157,48 +132,51 @@
             z-index: 1000;
             text-align: center;
         }
+
+        #banner {
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .marquee-box {
+            overflow: hidden; /* 넘치는 내용을 숨김 */
+            white-space: nowrap;
+            box-sizing: border-box;
+        }
+
+        .marquee-content {
+            display: inline-block;
+            padding-left: 100%; /* 처음 시작 위치 */
+            animation: marquee-loop 7s linear infinite; /* 애니메이션 반복 */
+        }
+
+        @keyframes marquee-loop {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(-100%);
+            }
+        }
     </style>
 </head>
 <body>
-<div id="countdown" style="display: none;"></div>
 
-<div id="score_results" style="display: none">
+<div>
+    <div id="banner" class="w-full absolute top-0 text-white text-2xl">
+        <div class="marquee-box w-full">
+            <div class="marquee-content">2024 레몬베이스 송년회 🍋</div>
+        </div>
+    </div>
 </div>
 
-<!-- 방향키 버튼 UI -->
-<div class="controls">
-    <button class="arrow-btn" id="upButton"
-            onmousedown="simulateKeyEvent('ArrowUp', 'keydown')"
-            onmouseup="simulateKeyEvent('ArrowUp', 'keyup')"
-            ontouchstart="simulateKeyEvent('ArrowUp', 'keydown')"
-            ontouchend="simulateKeyEvent('ArrowUp', 'keyup')">
-        ↑
-    </button>
-    <div class="row">
-        <button class="arrow-btn" id="leftButton"
-                onmousedown="simulateKeyEvent('ArrowLeft', 'keydown')"
-                onmouseup="simulateKeyEvent('ArrowLeft', 'keyup')"
-                ontouchstart="simulateKeyEvent('ArrowLeft', 'keydown')"
-                ontouchend="simulateKeyEvent('ArrowLeft', 'keyup')">
-            ←
-        </button>
-        <button class="arrow-btn" id="downButton"
-                onmousedown="simulateKeyEvent('ArrowDown', 'keydown')"
-                onmouseup="simulateKeyEvent('ArrowDown', 'keyup')"
-                ontouchstart="simulateKeyEvent('ArrowDown', 'keydown')"
-                ontouchend="simulateKeyEvent('ArrowDown', 'keyup')">
-            ↓
-        </button>
-        <button class="arrow-btn" id="rightButton"
-                onmousedown="simulateKeyEvent('ArrowRight', 'keydown')"
-                onmouseup="simulateKeyEvent('ArrowRight', 'keyup')"
-                ontouchstart="simulateKeyEvent('ArrowRight', 'keydown')"
-                ontouchend="simulateKeyEvent('ArrowRight', 'keyup')">
-            →
-        </button>
-    </div>
+<div id="countdown" class="text-9xl text-white absolute bold text-shadow-lg" style="display: none;"></div>
 
-    <div id="chat-container" style="display: none">
+<div id="score_results" class="grid grid-cols-3 gap-4" style="display: none"></div>
+
+<!-- 방향키 버튼 UI -->
+<div class="controls" style="display: none">
+    <div id="chat-container">
         <input id="chat-input" type="text" placeholder="Type your message..."/>
         <div class="send-btn" onclick="sendChat()">Send</div>
     </div>
@@ -229,6 +207,67 @@
         antialias: true, // 안티알리아스 활성화
     });
     document.body.appendChild(app.view);
+
+    const gameLayer = new PIXI.Container();
+    app.stage.addChild(gameLayer);
+
+    const uiLayer = new PIXI.Container();
+    uiLayer.zIndex = 10; // UI가 항상 맨 위에 표시되도록 설정
+    app.stage.addChild(uiLayer);
+
+    // 방향키 버튼 생성 함수
+    const createButton = (label, x, y, onClick) => {
+        const button = new PIXI.Container();
+
+        // 버튼 배경
+        const background = new PIXI.Graphics();
+        background.beginFill(0x333333);
+        background.drawRoundedRect(0, 0, 60, 60, 10);
+        background.endFill();
+
+        // 버튼 텍스트
+        const text = new PIXI.Text(label, {
+            fontSize: 24,
+            fill: 0xffffff,
+            fontWeight: "bold",
+        });
+        text.anchor.set(0.5);
+        text.position.set(30, 30); // 버튼 중앙에 텍스트 배치
+
+        button.addChild(background);
+        button.addChild(text);
+
+        // 버튼 위치
+        button.x = x;
+        button.y = y;
+
+        // 클릭 이벤트
+        button.interactive = true;
+        button.buttonMode = true;
+        button.on("pointerdown", () => onClick());
+        return button;
+    };
+
+    // 방향키 버튼 생성
+    const upButton = createButton("↑", 80, 0, () => simulateKeyEvent("ArrowUp", "keydown"));
+    const downButton = createButton("↓", 80, 60, () => simulateKeyEvent("ArrowDown", "keydown"));
+    const leftButton = createButton("←", 20, 60, () => simulateKeyEvent("ArrowLeft", "keydown"));
+    const rightButton = createButton("→", 140, 60, () => simulateKeyEvent("ArrowRight", "keydown"));
+    uiLayer.addChild(upButton, downButton, leftButton, rightButton);
+
+    // UI 위치 업데이트 함수
+    const updateUIPosition = () => {
+        // 화면 크기 반영
+        app.renderer.resize(window.innerWidth, window.innerHeight);
+
+        // 컨트롤러를 화면 아래쪽 정가운데로 위치
+        uiLayer.x = app.screen.width / 2 - 75; // 중앙 정렬
+        uiLayer.y = app.screen.height - 150;  // 화면 아래쪽
+    };
+
+
+    // 초기 위치 설정
+    updateUIPosition();
 
     // 사용자 상태 관리
     const users = {};
@@ -284,7 +323,7 @@
             polygon.lineTo(topLeft.isoX, topLeft.isoY);
             polygon.endFill();
 
-            app.stage.addChild(polygon);
+            gameLayer.addChild(polygon);
 
             // 중앙 텍스트 추가 (아이소메트릭 보정)
             const labelText = new PIXI.Text(`${zone.id} 번`, {
@@ -303,16 +342,18 @@
             const centerY = (topLeft.isoY + bottomRight.isoY) / 2;
 
             labelText.position.set(centerX, centerY); // 중앙 좌표에 배치
-            app.stage.addChild(labelText);
+            gameLayer.addChild(labelText);
         });
     };
 
-    const drawText = () => {
+    // 공지사항 텍스트
+    let labelText;
+    const drawText = (notice_content) => {
         const topLeft = toIsometric(0 * cellSize, 0 * cellSize);
         const bottomRight = toIsometric(0 * cellSize, 0 * cellSize);
 
         // 중앙 텍스트 추가 (아이소메트릭 보정)
-        const labelText = new PIXI.Text(`2024 레몬베이스 송년회`, {
+        labelText = new PIXI.Text(notice_content, {
             fontSize: 72,
             fill: 0xffffff,
         });
@@ -327,7 +368,7 @@
         const centerX = (topLeft.isoX + bottomRight.isoX) / 2;
         const centerY = (topLeft.isoY + bottomRight.isoY) / 2;
         labelText.position.set(centerX, centerY); // 중앙 좌표에 배치
-        app.stage.addChild(labelText);
+        gameLayer.addChild(labelText);
     }
 
 
@@ -350,7 +391,7 @@
             grid.lineTo(end.isoX, end.isoY);
         }
 
-        app.stage.addChild(grid);
+        gameLayer.addChild(grid);
     };
 
     // 사용자 추가
@@ -403,11 +444,11 @@
         scoreText.x = isoX;
         scoreText.y = isoY - 84; // 아이콘 위에 이모지 표시
 
-        app.stage.addChild(shadow);
-        app.stage.addChild(circle);
-        app.stage.addChild(idText);
-        app.stage.addChild(chatText);
-        app.stage.addChild(scoreText);
+        gameLayer.addChild(shadow);
+        gameLayer.addChild(circle);
+        gameLayer.addChild(idText);
+        gameLayer.addChild(chatText);
+        gameLayer.addChild(scoreText);
 
         // 사용자 저장
         users[id] = {
@@ -478,8 +519,8 @@
         // 카메라 목표 위치를 업데이트
         if (id === userId) {
             const {isoX, isoY} = toIsometric(user.targetX, user.targetY);
-            cameraPosition.targetX = -isoX * app.stage.scale.x + window.innerWidth / 2;
-            cameraPosition.targetY = -isoY * app.stage.scale.y + window.innerHeight / 2;
+            cameraPosition.targetX = -isoX * gameLayer.scale.x + window.innerWidth / 2;
+            cameraPosition.targetY = -isoY * gameLayer.scale.y + window.innerHeight / 2;
         }
 
         updateUserZone(id);
@@ -669,8 +710,8 @@
                 if (userId && users[userId]) {
                     const {x, y} = users[userId];
                     const {isoX, isoY} = toIsometric(x, y);
-                    cameraPosition.x = -isoX * app.stage.scale.x + window.innerWidth / 2;
-                    cameraPosition.y = -isoY * app.stage.scale.y + window.innerHeight / 2;
+                    cameraPosition.x = -isoX * gameLayer.scale.x + window.innerWidth / 2;
+                    cameraPosition.y = -isoY * gameLayer.scale.y + window.innerHeight / 2;
                     cameraPosition.targetX = cameraPosition.x;
                     cameraPosition.targetY = cameraPosition.y;
                 }
@@ -705,12 +746,15 @@
                 })
                 scoreResults.style.display = scoreResults.style.display === "none" ? "" : "none";
                 break;
+            case "notice":
+                labelText.text = message.content;
+                break;
             case "user_leave":
                 if (users[message.user_id]) {
-                    app.stage.removeChild(users[message.user_id].circle);
-                    app.stage.removeChild(users[message.user_id].chatText);
-                    app.stage.removeChild(users[message.user_id].idText);
-                    app.stage.removeChild(users[message.user_id].shadow);
+                    gameLayer.removeChild(users[message.user_id].circle);
+                    gameLayer.removeChild(users[message.user_id].chatText);
+                    gameLayer.removeChild(users[message.user_id].idText);
+                    gameLayer.removeChild(users[message.user_id].shadow);
                     delete users[message.user_id];
                 }
                 break;
@@ -773,6 +817,7 @@
     });
     window.addEventListener("resize", () => {
         app.renderer.resize(window.innerWidth, window.innerHeight);
+        updateUIPosition();
     });
 
     const activeKeys = new Set();
@@ -801,7 +846,8 @@
     // 그리드와 안내 문구 그리기
     drawGrid(50, 10000, 10000);
     drawVotingZones();
-    drawText();
+    drawText(`2024 레몬베이스 송년회 🍋`);
+
     // Ticker로 캐릭터 움직임 업데이트
     app.ticker.add((delta) => {
         // 카메라 보간 속도 설정 (값이 작을수록 더 부드러움)
@@ -809,14 +855,14 @@
         if (cameraPosition.targetX !== undefined && cameraPosition.targetY !== undefined) {
             cameraPosition.x += (cameraPosition.targetX - cameraPosition.x) * CAMERA_LERP_SPEED;
             cameraPosition.y += (cameraPosition.targetY - cameraPosition.y) * CAMERA_LERP_SPEED;
-            app.stage.position.set(cameraPosition.x, cameraPosition.y);
+            gameLayer.position.set(cameraPosition.x, cameraPosition.y);
         }
 
         updateHighlight();
         updateUserPositions(); // 보간 업데이트
         updateMovement(delta);
     });
-    app.stage.scale.set(zoomLevel);
+    gameLayer.scale.set(zoomLevel);
 
 </script>
 </body>
